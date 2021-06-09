@@ -1,9 +1,7 @@
 import * as THREE from '../libs/three.module.js'
-import * as TWEEN from '../libs/tween.esm.js'
 import { ThreeBSP } from '../libs/ThreeBSP.js'
 import { Modelo3D } from './Modelo3D.js';
 import { orientaciones } from './Orientacion.js';
-import { Game } from './Game.js';
 
 class PacMan extends Modelo3D {
   constructor(velocidad) {

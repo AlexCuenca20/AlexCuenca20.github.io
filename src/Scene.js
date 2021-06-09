@@ -1,16 +1,8 @@
-
-/// La clase fachada del modelo
-/**
- * Usaremos una clase derivada de la clase Scene de Three.js para llevar el control de la escena y de todo lo que ocurre en ella.
- */
-
  import * as THREE from '../libs/three.module.js'
  import * as TWEEN from '../libs/tween.esm.js';
- 
- // Clases de mi proyecto
- 
+
  import { PacMan } from './PacMan.js';
- import { Fantasma } from './Ghost.js';
+ import { Fantasma } from './Fantasma.js';
  import { Muro } from './Muro.js';
  import { Punto } from './Punto.js';
  import { Game } from './Game.js';
@@ -73,9 +65,8 @@
     this.createMap();
 
     // Spawneamos a los personajes para inicializar las camaras
-    this.spawnearPacman();
     this.fantasmas = [];
-    this.spawnearFantasmas();
+    this.resetearPersonajes();
 
     // Añadimos las luces...
     this.createLights ();
@@ -632,11 +623,13 @@
     });
   }
 
+  // Spawneamos todos los personajes
   resetearPersonajes(){
     this.spawnearPacman();
     this.spawnearFantasmas();
   }
 
+  // Cambiamos el nivel al siguiente, creando un loop de niveles cada vez que se acaba uno
   cambiarNivel(){
     if(this.nivel == 1){
       this.nivel = 2;
@@ -645,30 +638,43 @@
     }
   }
 
+  // Actualizamos la escena
   update () {
     var fin = false;
 
+    // Establecemos el comienzo del juego
     if(this.comienzaJuego){
-      if(this.game.getRemainingLives() > 2){
+      // Establecemos si hemos ganado o no la partida (cuando se acaban los puntos en el mapa)
+      if(this.game.getRemainingDots() > 0){
+        // Actualizamos las camaras correspondientes
         this.updateCamera();
 
+        // Actualizamos a Pacman y comprobamos si teletransportamos al personaje
         this.pacman.update(this.colisionWall(this.pacman.position, this.pacman.getOrientacion()));
         this.teletransportarPersonaje(this.pacman);
 
+        // Actualizamos a todos los fantasmas
         this.updateFantasmas();
 
+        // Comprobamos si comemos un punto o no
         this.eatPunto();
+
+        // Actualizamos la vista de la puntuación total
         document.getElementById('puntuacion').textContent = 'Score: ' + this.game.getScore();
 
+        // Comprobamos la colision de Pacman con un fantasma
         var fantasmaColision = this.colisionFantasma();
 
+        // Si se produce colisión, comprobamos si es vulnerable o no
         if(fantasmaColision != undefined){
+          // Si es vulnerable, actualizamos la puntuacion, respawneamos al fantasma y reproducimos el sonido correspondiente
           if(fantasmaColision.getVulnerable()){
 
             this.game.updateScore('G');
             this.respawnFantasma(fantasmaColision);
             this.game.getSonidoComer().play();
 
+            // Si no es vulnerable, reproducimos el sonido correspondiente y disminuimos las vidas
           } else {
             document.getElementById("muerte").style.display = "block";
             this.game.getSonidoMuerte().play();
@@ -677,21 +683,26 @@
             var vida = document.getElementById("vidas").getElementsByTagName("img");
             vida[this.game.getRemainingLives()].style.display = "none";
 
+            // Si tenemos más vidas, reseteamos a todos los personajes
             if(this.game.getRemainingLives() > 0){
               this.resetearPersonajes();
+
+              // Si no es así, perdemos la partida y finalizamos el juego
             } else {
               window.alert("HAS PERDIDO... Puntuación total: " + this.game.getScore() + "\nINTRODUCE UNA MONEDA (o pulsa F5, lo que prefieras...");
               fin = true;
             }
           }
         }
+
+        // Si ganamos el nivel, cambiamos al siguiente
       } else{
         window.alert("¡HAS GANADO! Puntuación total: " + this.game.getScore() + "\nCargando el siguiente nivel...");
         this.siguienteNivel();
       }
     }
 
-    // Renderizar escena (camara en vista isométrica y tercera persona) y minimapa
+    // Renderizar escena (camara en vista desde arriba o tercera persona) y minimapa
     if(this.terceraPersona){
       this.renderViewport(this, this.getCamera('P'), 0, 0, 1, 1, false);
     }else{
