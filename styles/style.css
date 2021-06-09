@@ -1,0 +1,54 @@
+body{
+    overflow: hidden;
+    margin: 0;
+}
+
+img {
+    max-width: 100%;
+    max-height: 100%;
+    margin: 0.5em;
+}
+
+#vidas{
+    height:2em;
+    background-color: transparent;
+    position: absolute;
+}
+
+#puntuacion{
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1.5em;
+    color: yellow;
+    position: absolute;
+    top: 2.5em;
+    left: 0.5em;
+}
+
+#botonInicio{
+    font-family: 'Press Start 2P', cursive;
+    font-size: 5em;
+    color: yellow;
+    position: absolute;
+    top: 4.1em;
+    left: 3.5em;
+}
+
+#muerte{
+    font-family: 'Press Start 2P', cursive;
+    font-size: 5em;
+    color: yellow;
+    position: absolute;
+    display: none;
+    top: 4.1em;
+    left: 3.5em;
+}
+
+#pacFury{
+    font-family: 'Press Start 2P', cursive;
+    font-size: 3em;
+    color: yellow;
+    position: absolute;
+    display: none;
+    top: 3em;
+    left: 3.5em;
+}
