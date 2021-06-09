@@ -7,7 +7,6 @@
  import * as THREE from '../libs/three.module.js'
  import * as TWEEN from '../libs/tween.esm.js';
  
- 
  // Clases de mi proyecto
  
  import { PacMan } from './PacMan.js';
@@ -27,58 +26,32 @@
     // Creamos el objeto con la información del juego
     this.game = new Game();
 
-    this.comienzaJuego = false;
-
-    this.botonPPulsado = false;
-
-    // Puntos de spawn del PacMan y de los fantasmas
+    // Puntos de spawn de los personajes
     this.pacmanSpawn = new THREE.Vector3(0, 0, 0);
     this.fantasmaSpawn = new THREE.Vector3(0, 0, 0);
 
-    // Creamos el mapa
-    this.map = [];
-    this.createMap();
+    // Iniciamos el nivel directamente
+    this.nivel = 0;
+    this.siguienteNivel();
 
-    this.spawnearPacman();
-
-    this.fantasmas = [];
-    this.spawnearFantasmas();
-
-    // Todo elemento que se desee sea tenido en cuenta en el renderizado de la escena debe pertenecer a esta. Bien como hijo de la escena (this en esta clase) o como hijo de un elemento que ya esté en la escena.
-    // Tras crear cada elemento se añadirá a la escena con   this.add(variable)
-    this.createLights ();
-    
-    // Tendremos una cámara con un control de movimiento con el ratón
-    this.createCamera ();
-
-    this.deletePacman();
-    this.deleteFantasmas();
-
-    this.fantasmas.forEach((fantasma) => {
-      this.remove(fantasma);
-    });    
-
+    // Mostramos la puntuación
     document.getElementById('puntuacion').textContent = 'Score: ' + this.game.getScore();
 
-    // Crear imagenes que representan la vida
+    // Mostramos las vidas restantes
     for (let i = 0; i < this.game.getRemainingLives(); i++) {
         let life = document.createElement("img");
         life.src = "img/pacman_icon.png";
         document.getElementById("vidas").appendChild(life);
     }
 
-    //ANIMACIONES
+    // Animación que controla 'la furia de Pacman'
     var inicioVulnerables = {x: 0};
     var finAnimacion = {x: 1};
 
     this.pacmanFurioso = new TWEEN.Tween(inicioVulnerables)
       .to(finAnimacion, 8000)
       .easing(TWEEN.Easing.Linear.None)
-      .onUpdate(() => {
-        console.log("Furia activada");
-      })
       .onComplete(() => {
-          console.log("Furia desactivada");
           this.fantasmas.forEach((fantasma) => {
             fantasma.setVulnerable(false);
           });
@@ -86,27 +59,68 @@
           document.getElementById("pacFury").style.display = "none";
       });
   }
+
+  siguienteNivel(){
+    // Eliminamos completamente la escena
+    while(this.children.length > 0){ 
+      this.remove(this.children[0]); 
+    }
+
+    // Cambiamos el nivel para cambiar de mapa
+    this.cambiarNivel();
+    // Creamos el mapa correspondiente
+    this.map = [];
+    this.createMap();
+
+    // Spawneamos a los personajes para inicializar las camaras
+    this.spawnearPacman();
+    this.fantasmas = [];
+    this.spawnearFantasmas();
+
+    // Añadimos las luces...
+    this.createLights ();
+    
+    // y las camaras a la escena
+    this.createCamera ();
+
+    // Eliminamos los modelos de los personajes, para volver a crearlos cuando comencemos a jugar
+    // así, solo inicializamos las camaras de la escena
+    this.deletePacman();
+    this.deleteFantasmas();
+
+    // No indicamos el comienzo del juego hasta que se pulse el botón 'P'
+    this.comienzaJuego = false;
+
+    // Solo podremos pulsar el botón 'P' una vez: cuando iniciemos la partida
+    this.botonPPulsado = false;
+
+    // Mostramos el mensaje del inicio
+    document.getElementById("botonInicio").style.display = "block";
+  }
+
   
   createCamera () {    
-    // Crear camara en perspectiva que seguira al PacMan
-    // Posicionarla, indicar hacia donde mira e insertarla en la escena
-    this.pacmanCamera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
-    // También se indica dónde se coloca
+    // Crear camara en perspectiva, siguiendo a Pacman en su espalda
+    this.pacmanCamera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+    // Se indica su posicion
     this.pacmanCamera.position.set(this.pacman.position.x, 3, this.pacman.position.z+2.75);
+    // Hacia donde mira
     this.pacmanCamera.lookAt(this.pacman.position);
+    // Y la insertamos en la escena
     this.add(this.pacmanCamera);
 
     this.terceraPersona = false;
 
-    // Crear camara en perspectiva que seguira al PacMan
-    // Posicionarla, indicar hacia donde mira e insertarla en la escena
+    // Crear camara en perspectiva, siguiendo a Pacman desde arriba
     this.camera= new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    // También se indica dónde se coloca
+    // Se indica su posición
     this.camera.position.set(this.pacman.position.x, 20, this.pacman.position.z+10);
+    // Hacia donde mira
     this.camera.lookAt(this.pacman.position);
+    // Y la insertamos en la escena
     this.add(this.camera);
 
-    // Obtener tamaños de las vistas en los ejes X, Y
+    // Obtener tamaños del minimapa
     var viewSizeX = this.map[0].length;
     var viewSizeY = this.map.length; 
 
@@ -114,6 +128,7 @@
     // e insertarla en la escena
     this.mapCamera = new THREE.OrthographicCamera(-viewSizeX / 2, viewSizeX / 2, viewSizeY / 2, - viewSizeY / 2, 1, 1000);
     
+    // La posicionamos correctamente mirando hacia abajo y la insertamos en la escena
     this.mapCamera.position.set(13.5, 4, 16);
     this.mapCamera.lookAt(13.5, 0, 16);
     this.add(this.mapCamera);
@@ -123,7 +138,7 @@
     // Se crea una luz ambiental, evita que se vean complentamente negras las zonas donde no incide de manera directa una fuente de luz
     // La luz ambiental solo tiene un color y una intensidad
     // Se declara como   var   y va a ser una variable local a este método
-    //    se hace así puesto que no va a ser accedida desde otros métodos
+    // se hace así puesto que no va a ser accedida desde otros métodos
     var ambientLight = new THREE.AmbientLight(0xccddee, 0.35);
     // La añadimos a la escena
     this.add (ambientLight);
@@ -140,33 +155,46 @@
   createMap() {
     var that = this;
 
-    this.game.getLevelMap().forEach(function(item, z) {
+    var mapa = [];
 
-      let row = [];
+    // Cargamos el mapa correspondiente al nivel
+    if(that.nivel == 1){
+      mapa = this.game.getLevelMap1();
+    } else if(that.nivel == 2){
+      mapa = this.game.getLevelMap2();
+    }
 
+    // Recorremos el mapa y añadimos los correspondientes objetos a la escena (comprobando el caracter que corresponde a cada casilla)
+    // Primero, recorremos las filas...
+    mapa.forEach(function(item, z) {
+
+      let fila = [];
+
+      // y después, la columna de cada fila
       for (let x = 0; x < item.length; x++) {
-          let cell = item.charAt(x);
-          row.push(cell);
+          let casilla = item.charAt(x);
+          fila.push(casilla);
 
-          if (cell === '#') {
+          if (casilla === '#') {
             that.createWall(x, z);
-          } else if (cell === '.') {
+          } else if (casilla === '.') {
             that.createDot(x, z);
-          } else if (cell === 'o') {
+          } else if (casilla === 'o') {
             that.createPowerPellet(x, z);
-          } else if (cell === 'P') {
+          } else if (casilla === 'P') {
             that.pacmanSpawn.x = x;
             that.pacmanSpawn.z = z;
-          } else if (cell === 'G') {
+          } else if (casilla === 'G') {
             that.fantasmaSpawn.x = x;
             that.fantasmaSpawn.z = z;
           }
       }
 
-      that.map.push(row);
+      that.map.push(fila);
     });
   }
 
+  // Creamos la pared correspondiente a la casilla indicada en el mapa
   createWall(x, z) {
     var wallMesh = new Muro();
     wallMesh.position.set(x, 0, z);
@@ -174,6 +202,7 @@
     this.add(wallMesh);
   }
 
+  // Creamos el punto normal correspondiente a la casilla indicada en el mapa
   createDot(x, z) {
     var punto = new Punto(0.1);
     punto.position.set(x, 0, z);
@@ -182,6 +211,7 @@
     this.game.increaseRemainingDots();
   }
 
+  // Creamos el punto grande correspondiente a la casilla indicada en el mapa
   createPowerPellet(x, z) {
       var puntoGrande = new Punto(0.2);
       puntoGrande.position.set(x, 0, z);
@@ -190,14 +220,16 @@
       this.game.increaseRemainingDots();
   }
   
+  // Spawneamos a los fantasmas
   spawnFantasma(fantasma) {
-    // Establecer que el fantasma ha spawneado
+    // Establecemos que el fantasma ha spawneado
     fantasma.setSpawned(true);
 
-    // Establecer velocidad
+    // Establecemos su velocidad
     fantasma.setVelocidad(this.game.getFantasmaSpeed());
   }
 
+  // Volvemos a spawnear a los fantasmas comidos
   respawnFantasma(fantasma){
     fantasma.position.set(this.fantasmaSpawn.x, 0, this.fantasmaSpawn.z);
     this.spawnFantasma(fantasma);
@@ -221,8 +253,8 @@
     return renderer;  
   }
   
+  // Establecemos las camaras usadas en cada momento, cambiando así entre tercera persona y vista superior
   getCamera (camera) {
-    // Devolvemos la cámara de PacMan o la cámara del minimapa en función del argumento
     if(camera === 'P'){
       return this.pacmanCamera;
     } else if(camera === 'M'){
@@ -232,56 +264,50 @@
     }
   }
   
+  // Actualizamos las camaras, dependiendo del tamaño de la ventana
   setCameraAspect (ratio) {
-    // Cada vez que el usuario modifica el tamaño de la ventana desde el gestor de ventanas de
-    // su sistema operativo hay que actualizar el ratio de aspecto de la cámara
     this.pacmanCamera.aspect = ratio;
-    // Y si se cambia ese dato hay que actualizar la matriz de proyección de la cámara
     this.pacmanCamera.updateProjectionMatrix();
 
     this.camera.aspect = 1;
     this.camera.updateProjectionMatrix();
 
-    // La camara ortogonal tiene un ratio de aspecto de 1 (es cuadrada)
     this.mapCamera.aspect = 1;
     this.mapCamera.updateProjectionMatrix();
   }
   
+  // Cada vez que modificamos el tamaño de la ventana, actualizamos el ratio de aspecto y el tamaño del renderizador
   onWindowResize () {
-    // Este método es llamado cada vez que el usuario modifica el tamaño de la ventana de la aplicación
-    // Hay que actualizar el ratio de aspecto de la cámara
     this.setCameraAspect (window.innerWidth / window.innerHeight);
-    
-    // Y también el tamaño del renderizador
+  
     this.renderer.setSize (window.innerWidth, window.innerHeight);
   }
 
   onKeyDown(event) {
     var key = event.which;
 
-    // Obtener orientacion anterior y establecer booleano para ajustar la
-    // posicion del PacMan
-    var prevorientacion = this.pacman.getOrientacion();
-    var adjustPosition = false;
+    
+    var orientacionPrevia = this.pacman.getOrientacion();
+    var ajustarPosicion = false;
 
     // Procesar el movimiento del personaje
     if(!this.terceraPersona){
       switch(String.fromCharCode(key).toUpperCase()) {
         case "A":
           this.pacman.setOrientacion(orientaciones.LEFT);
-          adjustPosition = prevorientacion != orientaciones.RIGHT && prevorientacion != orientaciones.LEFT;
+          ajustarPosicion = orientacionPrevia != orientaciones.RIGHT && orientacionPrevia != orientaciones.LEFT;
           break;
         case "S":
           this.pacman.setOrientacion(orientaciones.DOWN);
-          adjustPosition = prevorientacion != orientaciones.UP && prevorientacion != orientaciones.DOWN;
+          ajustarPosicion = orientacionPrevia != orientaciones.UP && orientacionPrevia != orientaciones.DOWN;
           break;
         case "D":
           this.pacman.setOrientacion(orientaciones.RIGHT);
-          adjustPosition = prevorientacion != orientaciones.LEFT && prevorientacion != orientaciones.RIGHT;
+          ajustarPosicion = orientacionPrevia != orientaciones.LEFT && orientacionPrevia != orientaciones.RIGHT;
           break;
         case "W":
           this.pacman.setOrientacion(orientaciones.UP);
-          adjustPosition = prevorientacion != orientaciones.DOWN && prevorientacion != orientaciones.UP;
+          ajustarPosicion = orientacionPrevia != orientaciones.DOWN && orientacionPrevia != orientaciones.UP;
           break;
         case "C":
           this.terceraPersona = !this.terceraPersona;
@@ -306,19 +332,19 @@
             switch(this.pacman.getOrientacion()) {
               case orientaciones.UP:
                 this.pacman.setOrientacion(orientaciones.DOWN);
-                adjustPosition = prevorientacion != orientaciones.UP && prevorientacion != orientaciones.DOWN;
+                ajustarPosicion = orientacionPrevia != orientaciones.UP && orientacionPrevia != orientaciones.DOWN;
                 break;
               case orientaciones.RIGHT:
                 this.pacman.setOrientacion(orientaciones.LEFT);
-                adjustPosition = prevorientacion != orientaciones.RIGHT && prevorientacion != orientaciones.LEFT;
+                ajustarPosicion = orientacionPrevia != orientaciones.RIGHT && orientacionPrevia != orientaciones.LEFT;
                 break;
               case orientaciones.DOWN:
                 this.pacman.setOrientacion(orientaciones.UP);
-                adjustPosition = prevorientacion != orientaciones.DOWN && prevorientacion != orientaciones.UP;
+                ajustarPosicion = orientacionPrevia != orientaciones.DOWN && orientacionPrevia != orientaciones.UP;
                 break;
               case orientaciones.LEFT:
                 this.pacman.setOrientacion(orientaciones.RIGHT);
-                adjustPosition = prevorientacion != orientaciones.LEFT && prevorientacion != orientaciones.RIGHT;
+                ajustarPosicion = orientacionPrevia != orientaciones.LEFT && orientacionPrevia != orientaciones.RIGHT;
                 break;
             }
             break;
@@ -326,19 +352,19 @@
             switch(this.pacman.getOrientacion()) {
               case orientaciones.UP:
                 this.pacman.setOrientacion(orientaciones.LEFT);
-                adjustPosition = prevorientacion != orientaciones.RIGHT && prevorientacion != orientaciones.LEFT;
+                ajustarPosicion = orientacionPrevia != orientaciones.RIGHT && orientacionPrevia != orientaciones.LEFT;
                 break;
               case orientaciones.RIGHT:
                 this.pacman.setOrientacion(orientaciones.UP);
-                adjustPosition = prevorientacion != orientaciones.DOWN && prevorientacion != orientaciones.UP;
+                ajustarPosicion = orientacionPrevia != orientaciones.DOWN && orientacionPrevia != orientaciones.UP;
                 break;
               case orientaciones.DOWN:
                 this.pacman.setOrientacion(orientaciones.RIGHT);
-                adjustPosition = prevorientacion != orientaciones.LEFT && prevorientacion != orientaciones.RIGHT;
+                ajustarPosicion = orientacionPrevia != orientaciones.LEFT && orientacionPrevia != orientaciones.RIGHT;
                 break;
               case orientaciones.LEFT:
                 this.pacman.setOrientacion(orientaciones.DOWN);
-                adjustPosition = prevorientacion != orientaciones.UP && prevorientacion != orientaciones.DOWN;
+                ajustarPosicion = orientacionPrevia != orientaciones.UP && orientacionPrevia != orientaciones.DOWN;
                 break;
             }
             break;
@@ -346,19 +372,19 @@
             switch(this.pacman.getOrientacion()) {
               case orientaciones.UP:
                 this.pacman.setOrientacion(orientaciones.RIGHT);
-                adjustPosition = prevorientacion != orientaciones.LEFT && prevorientacion != orientaciones.RIGHT;
+                ajustarPosicion = orientacionPrevia != orientaciones.LEFT && orientacionPrevia != orientaciones.RIGHT;
                 break;
               case orientaciones.RIGHT:
                 this.pacman.setOrientacion(orientaciones.DOWN);
-                adjustPosition = prevorientacion != orientaciones.UP && prevorientacion != orientaciones.DOWN;
+                ajustarPosicion = orientacionPrevia != orientaciones.UP && orientacionPrevia != orientaciones.DOWN;
                 break;
               case orientaciones.DOWN:
                 this.pacman.setOrientacion(orientaciones.LEFT);
-                adjustPosition = prevorientacion != orientaciones.RIGHT && prevorientacion != orientaciones.LEFT;
+                ajustarPosicion = orientacionPrevia != orientaciones.RIGHT && orientacionPrevia != orientaciones.LEFT;
                 break;
               case orientaciones.LEFT:
                 this.pacman.setOrientacion(orientaciones.UP);
-                adjustPosition = prevorientacion != orientaciones.DOWN && prevorientacion != orientaciones.UP;
+                ajustarPosicion = orientacionPrevia != orientaciones.DOWN && orientacionPrevia != orientaciones.UP;
                 break;
             }
             break;
@@ -370,7 +396,7 @@
 
     // Se ajusta la posicion del personaje redondeandola si se ha producido
     // un giro en una direccion perpendicular a la que tenia anteriormente
-    if (adjustPosition) {
+    if (ajustarPosicion) {
        this.pacman.position.round();
     }
 
@@ -398,20 +424,20 @@
         h = height * window.innerHeight;
     };
 
-    // Indicar al renderer qué viewport debe usar y recortar el resto
-    // de la imagen
+    // Indicamos el viewport y cortamos la imagen
     this.renderer.setViewport(l, t, w, h);
     this.renderer.setScissor(l, t, w, h);
     this.renderer.setScissorTest(true);
 
-    // Actualizar ratio de aspecto y matriz de proyeccion de la camara
+    // Actualizamos matriz de proyección y ratio de aspecto
     camera.aspect = w/h;
     camera.updateProjectionMatrix();
 
-    // Visualizar escena segun la camara
+    // Visualizar escena 
     this.renderer.render(scene, camera);
   }
 
+  // Actualizamos las camaras (dependiendo de si estamos en tercera persona o en camara desde arriba)
   updateCamera() {
     if(this.terceraPersona){
       switch(this.pacman.getOrientacion()){
@@ -438,6 +464,7 @@
     }
   }
 
+  // Movemos al fantasma: cuando detecta una colisión, calcula aleatoriamente una nueva orientación para avanzar
   moverFantasma(fantasma){
     var orientacion = fantasma.getOrientacion();
     
@@ -454,6 +481,7 @@
         }
   }
 
+  // Updateamos los fantasmas en cada tick
   updateFantasmas() {
     var that = this;
     that.fantasmas.forEach(function(fantasma, i){
@@ -463,6 +491,7 @@
     })
   }
   
+  // Detectamos si el personaje ha colisionado con la pared o no, deteniendolo.
   colisionWall(position, orientacion) {
     
     var colision = false;
@@ -488,6 +517,7 @@
     return colision;
   }
 
+  // Detectamos colision entre un fantasma y Pacman, devolviendo el fantasma involucrado en la misma
   colisionFantasma(){
     var colision = false;
     var fantasmaColision = undefined;
@@ -513,6 +543,10 @@
     return fantasmaColision;
   }
 
+  // Creamos la acción de comer puntos.
+  // Dependiendo del punto, realizará una acción u otra
+  // Si es un punto pequeño, incrementa la puntuación total
+  // Si es un punto grande, además de incrementar la puntuación total, activa 'la furia de Pacman'
   eatPunto(){
     var xPos = Math.round(this.pacman.position.x);
     var zPos = Math.round(this.pacman.position.z);
@@ -541,6 +575,7 @@
     }
   }
 
+  // Si el personaje se encuentra en el limite del mapa, se teletransporta a la otra ubicación
   teletransportarPersonaje(personaje){
     var xPos = Math.round(personaje.position.x);
     var zPos = Math.round(personaje.position.z);
@@ -554,10 +589,12 @@
     }
   }
 
+  // Borramos el modelo de Pacman de la escena
   deletePacman(){
     this.remove(this.pacman);
   }
 
+  // Spawneamos un nuevo Pacman en el punto de spawn (tras eliminar su antiguo modelo)
   spawnearPacman(){
     this.deletePacman();
 
@@ -568,12 +605,14 @@
     this.pacman.position.set(this.pacmanSpawn.x, 0, this.pacmanSpawn.z);
   }
   
+  // Eliminamos los modelos de todos los fantasmas de la escena
   deleteFantasmas(){
     this.fantasmas.forEach((fantasma) => {
       this.remove(fantasma);
     });
   }
 
+  // Spawneamos los nuevos fantasmas en el punto de spawn (tras eliminar sus antiguos modelos)
   spawnearFantasmas(){
     this.deleteFantasmas();
 
@@ -598,11 +637,19 @@
     this.spawnearFantasmas();
   }
 
+  cambiarNivel(){
+    if(this.nivel == 1){
+      this.nivel = 2;
+    } else if(this.nivel == 2 || this.nivel == 0){
+      this.nivel = 1;
+    }
+  }
+
   update () {
     var fin = false;
 
     if(this.comienzaJuego){
-      if(this.game.getRemainingDots() > 0){
+      if(this.game.getRemainingLives() > 2){
         this.updateCamera();
 
         this.pacman.update(this.colisionWall(this.pacman.position, this.pacman.getOrientacion()));
@@ -620,6 +667,7 @@
 
             this.game.updateScore('G');
             this.respawnFantasma(fantasmaColision);
+            this.game.getSonidoComer().play();
 
           } else {
             document.getElementById("muerte").style.display = "block";
@@ -638,8 +686,8 @@
           }
         }
       } else{
-        window.alert("¡HAS GANADO! Puntuación total: " + this.game.getScore() + "\nINTRODUCE UNA MONEDA (o pulsa F5, lo que prefieras...");
-        fin = true;
+        window.alert("¡HAS GANADO! Puntuación total: " + this.game.getScore() + "\nCargando el siguiente nivel...");
+        this.siguienteNivel();
       }
     }
 
